@@ -1,17 +1,20 @@
 /* globals newMap, L, idb */
 
-const eatDB = idb.open('UdacityEats', '2', upgradeDb => {
-    const restaurants = upgradeDb.createObjectStore('restaurants', {keyPath: 'id'});
+const eatDB = idb.open('UdacityEats', '3', upgradeDb => {
+    const restaurants = upgradeDb.createObjectStore('restaurants', {keyPath : 'id'});
+    const reviews     = upgradeDb.createObjectStore('reviews', {keyPath : 'id'});
     restaurants.createIndex('id', 'id');
+    reviews.createIndex('id', 'id');
+    reviews.createIndex('restaurant_id', 'restaurant_id');
 });
 
-const storeLocal = restaurants => {
+const storeLocal = (data, store_name) => {
     eatDB.then(db => {
-        const transaction = db.transaction('restaurants', 'readwrite');
-        const store       = transaction.objectStore('restaurants');
+        const transaction = db.transaction(store_name, 'readwrite');
+        const store       = transaction.objectStore(store_name);
 
-        restaurants.forEach(restaurant => {
-            store.put(restaurant);
+        data.forEach(datum => {
+            store.put(datum);
         });
 
         return transaction.complete;
@@ -19,13 +22,13 @@ const storeLocal = restaurants => {
 }
 
 const ApiHelper = {
-    DATABASE_URL: `http://localhost:1337/restaurants`,
+    BASE_URL : `http://localhost:1337`,
 
     fetchRestaurants() {
-        return fetch(this.DATABASE_URL)
+        return fetch(`${this.BASE_URL}/restaurants`)
             .then(response => response.json())
-            .then(restaurants => {
-                storeLocal(restaurants);
+            .then(restaurants => {                
+                storeLocal(restaurants, 'restaurants');
 
                 return restaurants;
             })
@@ -41,12 +44,45 @@ const ApiHelper = {
             })
     },
 
+    fetchRestaurantReviews() {
+        return fetch(`${this.BASE_URL}/reviews`)
+            .then(response => response.json())
+            .then(reviews => {
+                storeLocal(reviews, 'reviews');
+
+                return reviews;
+            })
+            .catch(() => {
+                return eatDB.then(db  => {
+                    const index = db.transaction('reviews').objectStore('reviews').index('id');
+
+                    return index.getAll().then(json_data => json_data);
+                })
+                .catch(err => {
+                    throw err;
+                })
+            })
+    },
+
     fetchRestaurantById(id) {
-        return fetch(`${this.DATABASE_URL}/${id}`)
+        return fetch(`${this.BASE_URL}/restaurants/${id}`)
             .then(response => response.json())
             .catch(() => {
                 return eatDB.then(db  => {
                     return db.transaction('restaurants').objectStore('restaurants').get(id);
+                })
+                .catch(err => {
+                    throw err;
+                })
+            });
+    },
+
+    fetchRestaurantReviewsById(id) {
+        return fetch(`${this.BASE_URL}/reviews/?restaurant_id=${id}`)
+            .then(response => response.json())
+            .catch(() => {
+                return eatDB.then(db  => {
+                    return db.transaction('reviews').objectStore('reviews').get(id);
                 })
                 .catch(err => {
                     throw err;

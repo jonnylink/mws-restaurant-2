@@ -39,7 +39,23 @@
             <table id="restaurant-hours" tabindex="5"></table>
         </section>
         <section id="reviews-container">
-            <ul id="reviews-list" tabindex="6"></ul>
+            <h3>Reviews</h3>
+            
+            <form id="review-form">
+                <h4>leave a review</h4>
+                <div>
+                    <input type="text" id="name" aria-label="name" placeholder="Your name" tabindex="6" required>
+                </div>
+                <div>
+                    <input type="number" id="rating" min="1" max="5" aria-label="rating" placeholder="Rating" tabindex="7" required>
+                </div>
+                <div>
+                    <textarea id="comments" aria-label="comments" placeholder="Comments" tabindex="8"></textarea>
+                </div>
+                <button id="submit-review" tabindex="9">Submit</button>
+            </form>
+
+            <ul id="reviews-list" tabindex="10"></ul>
         </section>
     </main>
 

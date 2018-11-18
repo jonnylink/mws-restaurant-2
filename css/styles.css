@@ -34,7 +34,6 @@ a {
     text-decoration: none;
 }
 
-a:hover,
 a:focus {
     box-shadow: 1px 1px 1px 1px aliceblue;
 }
@@ -346,6 +345,50 @@ nav h1 a {
     font-weight: 300;
     letter-spacing: -1px;
     padding-bottom: 1pt;
+}
+
+#review-form h4 {
+    color: #65a1d7;
+    font-size: 1rem;
+    margin: 0;
+}
+
+#review-form {
+    margin: 0 auto;
+    width: 80%;
+}
+
+#review-form div,
+#edit-review-form div {
+    margin-bottom: 0.2rem;
+}
+
+#review-form input,
+#review-form textarea,
+#edit-review-form input,
+#edit-review-form textarea {
+    border: 1px solid #bbb;
+    border-radius: 2px;
+    padding: 0.2rem;
+}
+
+#review-form textarea,
+#edit-review-form textarea {
+    height: 5rem;
+    width: 100%;
+}
+
+#edit-review-form {
+    margin-top: 1.5rem;
+}
+
+.edit-review,
+.delete-review {
+    color: #65a1d7;
+    cursor: pointer;
+    float: right;
+    font-size: 1.1rem;
+    margin-left: 1rem;
 }
 
 #reviews-list {

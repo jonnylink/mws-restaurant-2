@@ -1,5 +1,5 @@
 /* globals ApiHelper, L */
-var newMap;
+let newMap;
 
 const UdacityYelp = {
     restaurants   : [],
@@ -11,6 +11,7 @@ const UdacityYelp = {
         this.initMap()
             .setNeighborhoods()
             .setCuisines();
+        ApiHelper.fetchRestaurantReviews();
     },
 
     addListeners () {
@@ -37,26 +38,6 @@ const UdacityYelp = {
             .catch(() => {
                 // defer submission
             });
-    },
-
-    postReview (form) {
-        fetch('http://localhost:1337/reviews/', {
-                method : 'POST',
-                body   : JSON.stringify({
-                    restaurant_id : form.restaurant_id,
-                    name          : form.reviewer_name,
-                    rating        : form.rating,
-                    comments      : form.comment_text,
-                })
-                
-            })
-            .then(() => {
-                // add the review to the page
-            })
-            .catch(() => {
-                // add review to the page
-                // defer submission
-            }) 
     },
 
     setNeighborhoods () {
