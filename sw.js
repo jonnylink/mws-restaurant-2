@@ -1,14 +1,19 @@
-const staticCacheName = 'UdacityEats-v8';
+self.importScripts('js/idb.js', 'js/api_helper.js');
+
+const staticCacheName = 'UdacityEats-v4';
 
 self.addEventListener('fetch', event => {
     event.respondWith(
         caches.open(staticCacheName).then(cache => {
+            ApiHelper.doPendingFetch();
             return cache.match(event.request).then(response => {
                 if (response) {
                     return response;
                 }
                 return fetch(event.request).then(fetch_response => {
-                    cache.put(event.request, fetch_response.clone());
+                    if (event.request.method === 'GET' && event.request.type !== 'html') {
+                        cache.put(event.request, fetch_response.clone());
+                    }
                     return fetch_response;
                 });
             });
@@ -31,6 +36,7 @@ self.addEventListener('install', event => {
         caches.open(staticCacheName).then(cache => {
             return cache.addAll([
                 '/',
+                '/favicon.ico',
                 '/manifest.json',
                 '/index.html',
                 '/restaurant.html',

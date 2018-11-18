@@ -1,4 +1,4 @@
-/* globals L, ApiHelper, eatDB */
+/* globals L, ApiHelper, eatDB, storeLocal */
 let newMap;
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -35,140 +35,94 @@ const UdacityYelpRestaurant = {
             });
     },
 
-    addListeners () {        
+    addListeners () {
         document.querySelector('#favorite-heart').addEventListener('click', () => this.toggleFavorite());
-        document.querySelector('#submit-review').addEventListener('click', event => this.postReview(event));
+        document.querySelector('#submit-review').addEventListener('click', event => this.handleReviewSubmit(event));
         document.querySelectorAll('.edit-review').forEach(pencil => pencil.addEventListener('click', event => this.renderEditReviewForm(event)));
-        document.querySelectorAll('.delete-review').forEach(trash => trash.addEventListener('click', event => this.deleteReview(event)));
+        document.querySelectorAll('.delete-review').forEach(trash => trash.addEventListener('click', event => this.handleDeleteReview(event)));
 
         return this;
     },
 
     toggleFavorite () {
         const will_be_favorite = this.restaurant.isFavorite === 'true' ? 'false' : 'true';
-        fetch(`http://localhost:1337/restaurants/${this.restaurant.id}/?is_favorite=${will_be_favorite}`, {
-                method: 'PUT'
-            })
+        ApiHelper.toggleFavorite(this.restaurant.id, will_be_favorite)
             .then(() => {
+                const heart_icon = document.querySelector('#favorite-heart');
                 this.restaurant.isFavorite = will_be_favorite;
                 if (will_be_favorite === 'true') {
-                    document.querySelector('#favorite-heart').classList.add('favorite');
+                    heart_icon.classList.add('favorite');
+                    heart_icon.innerHTML = '&#9829;';
                 } else {
-                    document.querySelector('#favorite-heart').classList.remove('favorite');
+                    heart_icon.classList.remove('favorite');
+                    heart_icon.innerHTML = '&#9825;';
                 }
-            })
-            .catch(() => {
-                // defer submission
             });
     },
 
-    postReview (event) {
+    handleReviewSubmit (event) {
         event.preventDefault();
-        const form_data = { // could iterate over form.elements, but it's only three fields
+
+        const review_data = { // could iterate over form.elements, but it's only three fields
             restaurant_id : this.restaurant.id,
             name          : document.getElementById('name').value,
             rating        : parseInt(document.getElementById('rating').value),
             comments      : document.getElementById('comments').value,
         };
 
-        fetch('http://localhost:1337/reviews', {
-                method : 'POST',
-                body   : JSON.stringify(form_data)
-            })
-            .then(response => response.json())
-            .then(review => {               
-                eatDB.then(db => {
-                    const transaction = db.transaction('reviews', 'readwrite');
-                    const store       = transaction.objectStore('reviews');
-
-                    store.put(review);
-                })
-                .then(() => {
-                    document.getElementById('review-form').reset();
-                    const review_node = this.createReviewHTML(review);
-                    document.getElementById('reviews-list').append(review_node);
-                })
-                // add to restaurant.reviews
-                // add to idb
-            })
-            .catch(() => {
-                // add review to the page
-                // defer submission
-            }) 
+        ApiHelper.postReview(review_data)
+            .then(review => {
+                this.restaurant.reviews.push(review);
+                document.getElementById('review-form').reset();
+                const review_node = this.createReviewHTML(review);
+                document.getElementById('reviews-list').append(review_node);
+            });
     },
 
-    putReview (event) {
+    handleReviewUpdate (event) {
         event.preventDefault();
 
-        const review_id = event.target.dataset.reviewId;
-        const form_data = { 
+        const review_id   = parseInt(event.target.dataset.reviewId);
+        const review_data = {
             name          : document.getElementById('edit-name').value,
             rating        : parseInt(document.getElementById('edit-rating').value),
             comments      : document.getElementById('edit-comments').value,
         };
 
-        fetch(`http://localhost:1337/reviews/${review_id}`, {
-                method : 'PUT',
-                body   : JSON.stringify(form_data)
-            })
-            .then(response => response.json())
+        ApiHelper.putReview(review_id, review_data)
             .then(review => {
-                eatDB.then(db => {
-                    const transaction = db.transaction('reviews', 'readwrite');
-                    const store       = transaction.objectStore('reviews');
+                // remove old review, append new one
+                document.getElementById(`review_${review_id}`).remove();
+                const review_node = this.createReviewHTML(review);
+                document.getElementById('reviews-list').append(review_node);
 
-                    store.put(review);
-                })
-                .then(() => {
-                    // remove old review
-                    document.getElementById(`review_${review.id}`).remove();
-                    const review_node = this.createReviewHTML(review);
-                    document.getElementById('reviews-list').append(review_node);
-                    
-                    // update to restaurant.reviews
-                    const update_review_key = this.restaurant.reviews.filter((review_object, review_key) => {
-                        if (review_object.id === review.id) {
-                            return review_key;
-                        }
-                    })[0];
-                    this.restaurant.reviews[update_review_key] = review;
-                })
-                .then(() => {
-                    document.querySelector(`#review_${review.id} .edit-review`).addEventListener('click', event => this.renderEditReviewForm(event));
-                    document.querySelector(`#review_${review.id} .delete-review`).addEventListener('click', event => this.deleteReview(event));
-                })
-              
+                // update to restaurant.reviews
+                const update_review_key = this.restaurant.reviews.filter((review_object, review_key) => {
+                    if (review_object.id === review_id) {
+                        return review_key;
+                    }
+                })[0];
+                this.restaurant.reviews[update_review_key] = review;
             })
-            .catch(() => {
-                // add review to the page
-                // defer submission
-            }) 
+            .then(() => {
+                document.querySelector(`#review_${review_id} .edit-review`).addEventListener('click', event => this.renderEditReviewForm(event));
+                document.querySelector(`#review_${review_id} .delete-review`).addEventListener('click', event => this.handleDeleteReview(event));
+            })
     },
 
-    deleteReview(event) {
+    handleDeleteReview(event) {
         event.preventDefault();
         const review_id = parseInt(event.target.dataset.reviewId);
-        fetch(`http://localhost:1337/reviews/${review_id}`, { method: 'DELETE' })
-            .then(() => {
-                eatDB.then(db => {
-                    const transaction = db.transaction('reviews', 'readwrite');
-                    const store       = transaction.objectStore('reviews');
+        ApiHelper.deleteReview(review_id);
 
-                    store.delete(review_id);
-                })
-                .then(() => event.target.parentElement.remove());
-            })
-            .catch(() => {
-                // defer action, try again
-            })
-        
+        event.target.parentElement.remove()
     },
 
     renderEditReviewForm (event) {
-        const open_form  = document.getElementById('edit-review-form'); 
+        const open_form  = document.getElementById('edit-review-form');
         if (open_form) {
             open_form.remove(); // allow only one form open at a time
-        } 
+        }
 
         const review     = this.getReviewById(parseInt(event.target.dataset.reviewId));
         const review_div = event.target.parentElement;
@@ -188,7 +142,7 @@ const UdacityYelpRestaurant = {
         const form_node  = document.createRange().createContextualFragment(form_html);
         review_div.append(form_node);
         document.getElementById('edit-name').focus();
-        document.getElementById('edit-review').addEventListener('click', event => this.putReview(event));
+        document.getElementById('edit-review').addEventListener('click', event => this.handleReviewUpdate(event));
     },
 
     // Get current restaurant from page URL.
@@ -208,30 +162,30 @@ const UdacityYelpRestaurant = {
                         .then(() => {
                             this.fillRestaurantHTML()
                                 .fillReviewsHTML();
-                            
+
                             return Promise.resolve();
                         });
                 })
                 .then(() => {
                     this.addListeners();
-                    
+
                     return Promise.resolve();
                 })
         }
     },
 
     fetchRestaurantReviewFromURL() {
-        if (this.restaurant.reviews) { // restaurant already fetched!            
+        if (this.restaurant.reviews) { // restaurant already fetched!
             return Promise.resolve();
         }
 
-        if (!this.restaurant.id) { // no id found in URL            
+        if (!this.restaurant.id) { // no id found in URL
             return Promise.reject('No restaurant');
-        } else {            
+        } else {
             return ApiHelper.fetchRestaurantReviewsById(this.restaurant.id)
                 .then(reviews => {
                     this.restaurant.reviews = reviews;
-                    
+
                     return Promise.resolve();
                 });
         }
@@ -243,13 +197,13 @@ const UdacityYelpRestaurant = {
         const hours_html       = this.renderRestaurantHoursHTML();
         const restaurant_html  = `
             <h2 id="restaurant-name">${this.restaurant.name}</h2>
-            <div id="favorite-heart" tabindex="2" aria-label="Click to favorite this restaurant." class="favorite">♥</div>
-            <img id="restaurant-img" class="restaurant-img ${this.restaurant.is_favorite === 'true' ? 'favorite' : ''}" src="${img_url_fragment}-300.jpg" srcset="${img_url_fragment}-600.jpg 1000w, ${img_url_fragment}-1200.jpg 2000w" alt="classy photo from ${this.restaurant.name}">
+            <div id="favorite-heart" tabindex="2" ${this.restaurant.is_favorite === 'true' ? 'class="favorite"' : ''} aria-label="Click to favorite this restaurant." class="favorite">${this.restaurant.is_favorite === 'true' ? '&#9829;' : '&#9825;'}</div>
+            <img id="restaurant-img" class="restaurant-img" src="${img_url_fragment}-300.jpg" srcset="${img_url_fragment}-600.jpg 1000w, ${img_url_fragment}-1200.jpg 2000w" alt="classy photo from ${this.restaurant.name}">
             <p id="restaurant-cuisine" tabindex="3">${this.restaurant.cuisine_type}</p>
             <p id="restaurant-address" tabindex="4">${this.restaurant.address}</p>
             <table id="restaurant-hours" tabindex="5">${hours_html}</table>`;
         document.getElementById('restaurant-container').innerHTML = restaurant_html;
-        
+
         return this;
     },
 
@@ -270,7 +224,7 @@ const UdacityYelpRestaurant = {
     // Create all reviews HTML and add them to the webpage.
     fillReviewsHTML(reviews = this.restaurant.reviews) {
         const container = document.getElementById('reviews-container');
- 
+
         if (!reviews) {
             const no_reviews = document.createRange().createContextualFragment('<p>No reviews yet!</p>');
             container.appendChild(no_reviews);

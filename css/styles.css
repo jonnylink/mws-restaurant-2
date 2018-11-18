@@ -243,22 +243,30 @@ nav h1 a {
 
 .index-heart,
 #favorite-heart {
-    font-size: 2rem;
-    color: #ccc;
+    color: #666;
     cursor: pointer;
 }
 
 .index-heart {
+    font-size: 1.2rem;
     float: right;
-    margin-top: -1rem;
+    margin-top: -0.4rem;
 }
 
 #favorite-heart {
-    margin: 0 0 2rem;
+    font-size: 1.2rem;
+    margin: 0 0 0.5rem;
 }
 
 .favorite {
     color: #ae3122 !important;
+    font-size: 2rem !important;
+    margin-top: -1rem !important;
+}
+
+#favorite-heart .favorite{
+    font-size: 1.2rem;
+    margin-top: -1rem !important;
 }
 
 #restaurants-list p {
@@ -370,6 +378,7 @@ nav h1 a {
     border: 1px solid #bbb;
     border-radius: 2px;
     padding: 0.2rem;
+    width: 10rem;
 }
 
 #review-form textarea,
@@ -416,6 +425,18 @@ nav h1 a {
 
 #restaurant-hours td {
     color: #666;
+}
+
+.offline-warning {
+    background: #f8d3d3;
+    bottom: 0;
+    color: #530707;
+    font-size: 1.5rem;
+    left: 0;
+    line-height: 1.5rem;
+    padding: 1rem;
+    position: fixed;
+    right: 0;
 }
 
 @media (min-width: 450px) {

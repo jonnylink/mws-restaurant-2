@@ -31,8 +31,10 @@ const UdacityYelp = {
                 heart_icon.dataset.isFavorite = will_be_favorite;
                 if (will_be_favorite === 'true') {
                     heart_icon.classList.add('favorite');
+                    heart_icon.innerHTML = '&#9829;';
                 } else {
                     heart_icon.classList.remove('favorite');
+                    heart_icon.innerHTML = '&#9825;';
                 }
             })
             .catch(() => {
@@ -161,8 +163,8 @@ const UdacityYelp = {
         <div>
             <img class="restaurant-img" alt="classy photo from ${restaurant.name}" src="${img_url_fragment}-300.jpg" srcset="${img_url_fragment}-600.jpg 1000w, ${img_url_fragment}-1200.jpg 2000w">
             <h1>
-                ${restaurant.name} 
-                <span class="index-heart ${is_favorite ? 'favorite' : ''}" data-is-favorite="${is_favorite ? 'true' : 'false'}" data-restaurant-id="${restaurant.id}" aria-label="Click to favorite ${restaurant.name}">&#9829;</span>
+                ${restaurant.name}
+                <span class="index-heart ${is_favorite ? 'favorite' : ''}" data-is-favorite="${is_favorite ? 'true' : 'false'}" data-restaurant-id="${restaurant.id}" aria-label="Click to favorite ${restaurant.name}">${restaurant.is_favorite === 'true' ? '&#9829;' : '&#9825;'}</span>
             </h1>
             <p>${restaurant.neighborhood}</p>
             <p>${restaurant.address}</p>

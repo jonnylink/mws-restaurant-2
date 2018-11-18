@@ -1,11 +1,13 @@
 /* globals newMap, L, idb */
 
-const eatDB = idb.open('UdacityEats', '3', upgradeDb => {
-    const restaurants = upgradeDb.createObjectStore('restaurants', {keyPath : 'id'});
-    const reviews     = upgradeDb.createObjectStore('reviews', {keyPath : 'id'});
+const eatDB = idb.open('UdacityEats', '4', upgradeDb => {
+    const restaurants     = upgradeDb.createObjectStore('restaurants', {keyPath : 'id'});
+    const reviews         = upgradeDb.createObjectStore('reviews', {keyPath : 'id'});
+    const background_sync = upgradeDb.createObjectStore('background_sync', { autoIncrement : true, keyPath: 'id' });
     restaurants.createIndex('id', 'id');
     reviews.createIndex('id', 'id');
     reviews.createIndex('restaurant_id', 'restaurant_id');
+    background_sync.createIndex('id', 'id');
 });
 
 const storeLocal = (data, store_name) => {
@@ -21,13 +23,33 @@ const storeLocal = (data, store_name) => {
     });
 }
 
+const deleteRecord = (id, store_name) => {
+    eatDB.then(db => {
+        const transaction = db.transaction(store_name, 'readwrite');
+        const store       = transaction.objectStore(store_name);
+        store.delete(parseInt(id));
+
+        return transaction.complete;
+    });
+}
+
+const updateRecord = (record, store_name) => {
+    eatDB.then(db => {
+        const transaction = db.transaction(store_name, 'readwrite');
+        const store       = transaction.objectStore(store_name);
+        store.put(record);
+
+        return transaction.complete;
+    });
+}
+
 const ApiHelper = {
     BASE_URL : `http://localhost:1337`,
 
     fetchRestaurants() {
         return fetch(`${this.BASE_URL}/restaurants`)
             .then(response => response.json())
-            .then(restaurants => {                
+            .then(restaurants => {
                 storeLocal(restaurants, 'restaurants');
 
                 return restaurants;
@@ -131,6 +153,116 @@ const ApiHelper = {
             .then(restaurants => {
                 const cuisines = restaurants.map((v, i) => restaurants[i].cuisine_type);
                 return cuisines.filter((v, i) => cuisines.indexOf(v) === i);
+            })
+    },
+
+    postReview(review_data) {
+        return fetch(`${this.BASE_URL}/reviews`, {
+                method : 'POST',
+                body   : JSON.stringify(review_data)
+            })
+            .then(response => response.json())
+            .then(review => {
+                storeLocal([review], 'reviews');
+                return Promise.resolve(review);
+            })
+            .catch(() => {
+                const pending_data = {
+                    url    : `${this.BASE_URL}/reviews`,
+                    method : 'POST',
+                    body   : JSON.stringify(review_data),
+                    store  : 'reviews',
+                };
+                storeLocal([pending_data], 'background_sync');
+
+                return Promise.resolve(review_data);
+            });
+    },
+
+    putReview(review_id, review_data) {
+        return fetch(`${this.BASE_URL}/reviews/${review_id}`, {
+                method : 'PUT',
+                body   : JSON.stringify(review_data)
+            })
+            .then(response => response.json())
+            .then(review => {
+                this.updateRecord(review, 'reviews');
+
+                return Promise.resolve(review);
+            })
+            .catch(() => {
+                const pending_data = {
+                    url    : `${this.BASE_URL}/reviews/${review_id}`,
+                    method : 'PUT',
+                    body   : JSON.stringify(review_data),
+                    store  : 'reviews',
+                };
+                storeLocal([pending_data], 'background_sync');
+
+                return Promise.resolve(review_data);
+            });
+    },
+
+    deleteReview(review_id) {
+        fetch(`${this.BASE_URL}/reviews/${review_id}`, { method : 'DELETE' })
+            .then(() => {
+                deleteRecord(review_id, 'reviews');
+            })
+            .catch(err => {
+                const pending_data = {
+                    url    : `${this.BASE_URL}/reviews/${review_id}`,
+                    method : 'DELETE',
+                    body   : '',
+                    store  : 'reviews',
+                    id     : review_id,
+                };
+                storeLocal([pending_data], 'background_sync');
+                return Promise.resolve(err);
+            });
+    },
+
+    toggleFavorite(restaurant_id, is_favorite) {
+        return fetch(`${this.BASE_URL}/restaurants/${restaurant_id}/?is_favorite=${is_favorite}`, {method: 'PUT'})
+            .catch(err => {
+                const pending_data = {
+                    url    : `${this.BASE_URL}/restaurants/${restaurant_id}/?is_favorite=${is_favorite}`,
+                    method : 'PUT',
+                    body   : '',
+                    store  : 'restaurants',
+                };
+                storeLocal([pending_data], 'restaurants');
+
+                return Promise.resolve(err);
+            });
+    },
+
+    doPendingFetch() {
+        if (!navigator.onLine) {
+            return;
+        }
+        eatDB.then(db => {
+                const index = db.transaction('background_sync').objectStore('background_sync').index('id');
+                return index.getAll().then(json_data => json_data);
+            })
+            .then(pending_fetches => {
+                pending_fetches.forEach(pending_fetch => {
+                    fetch(pending_fetch.url, {
+                            method : pending_fetch.method,
+                            body   : pending_fetch.body,
+                        })
+                        .then(response => response.json())
+                        .then(json_response => {
+                            deleteRecord(pending_fetch.id, 'background_sync');
+
+                            if (pending_fetch.method === 'POST') {
+                                storeLocal([json_response], pending_fetch.store);
+                            } else if (pending_fetch.method === 'DELETE') {
+                                deleteRecord(json_response.id, json_response.store);
+                            } else if (pending_fetch.method === 'PUT') {
+                                updateRecord(json_response, pending_fetch.store);
+                            }
+                        })
+                })
             })
     },
 
